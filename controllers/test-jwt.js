@@ -11,7 +11,7 @@ router.get("/sign-token", (req, res) => {
 
   delete user.password;
 
-  const token = jwt.sign({ user }, process.env.SECRET);
+  const token = jwt.sign({ user }, process.env.JWT_SECRET);
 
   res.json({ message: "You are authorized!", token });
 });
@@ -20,7 +20,7 @@ router.get("/verify-token", (req, res) => {
   try {
     const token = req.headers.authorization.split(" ")[1];
 
-    const decoded = jwt.verify(token, process.env.SECRET )
+    const decoded = jwt.verify(token, process.env.JWT_SECRET )
 
     res.json({ decoded });
 
