@@ -10,6 +10,7 @@ const authRoutes = require('./controllers/auth');
 const userRoutes = require('./controllers/user');
 const verifyToken = require('./middleware/verify-token');
 const gameRoutes = require('./controllers/games');
+const reviewRoutes = require('./controllers/reviews');
 
 mongoose.connect(process.env.MONGODB_URI);
 
@@ -28,6 +29,7 @@ app.use('/users', userRoutes);
 // Any routes below this would require AUTH
 app.use(verifyToken);
 app.use('/games', gameRoutes);
+app.use('/reviews', reviewRoutes);
 
 app.listen(3000, () => {
   console.log('The express app is ready!');
