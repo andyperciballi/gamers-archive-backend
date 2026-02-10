@@ -1,7 +1,8 @@
 // controllers/games.js
 const router = require('express').Router();
 const { igdbRequest } = require('../utils/igdb');
-const Game = require('../models/game');
+const ApiGame = require('../models/IgdbGame');
+const LibraryItem = require('../models/LibraryItem');
 
 // Search IGDB
 router.get('/search', async (req, res) => {
@@ -9,7 +10,9 @@ router.get('/search', async (req, res) => {
     const { query } = req.query;
     const games = await igdbRequest(
       'games',
-      `search "${query}"; fields name, cover.url, summary, genres.name, platforms.name; limit 10;`
+      `search "${query}";
+       fields name, cover.url, summary, genres.name, platforms.name;
+       limit 10;`
     );
     res.status(200).json(games);
   } catch (error) {
@@ -17,35 +20,77 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// Save a game to user's archive
+// Add a game to user's library
 router.post('/', async (req, res) => {
   try {
-    req.body.owner = req.user._id;
-    const game = await Game.create(req.body);
-    res.status(201).json(game);
+    const {
+      igdbGameId,
+      title,
+      coverUrl,
+      summary,
+      platform,
+      genre,
+      status,
+      notes,
+    } = req.body;
+
+    // 1. Find or create ApiGame
+    let apiGame = await ApiGame.findOne({ igdbGameId });
+
+    if (!apiGame) {
+      apiGame = await ApiGame.create({
+        igdbGameId,
+        title,
+        coverUrl,
+        summary,
+        platform,
+        genre,
+      });
+    }
+
+    // 2. Create LibraryItem
+    const libraryItem = await LibraryItem.create({
+      userId: req.user._id,
+      gameId: apiGame._id,
+      status,
+      notes,
+    });
+
+    // 3. Populate and return
+    const populatedItem = await libraryItem.populate('gameId');
+
+    res.status(201).json(populatedItem);
   } catch (error) {
     res.status(500).json({ err: error.message });
   }
 });
 
-// Get user's saved games
+// Get user's library
 router.get('/', async (req, res) => {
   try {
-    const games = await Game.find({ owner: req.user._id });
-    res.status(200).json(games);
+    const library = await LibraryItem.find({ userId: req.user._id })
+      .populate('gameId');
+    res.status(200).json(library);
   } catch (error) {
     res.status(500).json({ err: error.message });
   }
 });
 
-// Delete a saved game
+// Remove game from library
 router.delete('/:id', async (req, res) => {
   try {
-    const game = await Game.findById(req.params.id);
-    if (!game) return res.status(404).json({ err: 'Game not found' });
-    if (!game.owner.equals(req.user._id)) return res.status(403).json({ err: 'Not authorized' });
-    await game.deleteOne();
-    res.status(200).json({ message: 'Game removed' });
+    const item = await LibraryItem.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({ err: 'Library item not found' });
+    }
+
+    if (!item.userId.equals(req.user._id)) {
+      return res.status(403).json({ err: 'Not authorized' });
+    }
+
+    await item.deleteOne();
+    res.status(200).json({ message: 'Game removed from library' });
   } catch (error) {
     res.status(500).json({ err: error.message });
   }
