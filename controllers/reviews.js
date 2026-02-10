@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const Review = require('../models/Review.js');
+const Review = require('../models/Review');
 const verifyToken = require('../middleware/verify-token');
 
 router.use(verifyToken);
