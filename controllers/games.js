@@ -1,27 +1,25 @@
-// controllers/games.js
 const router = require('express').Router();
 const { igdbRequest } = require('../utils/igdb');
 const ApiGame = require('../models/IgdbGame');
 const LibraryItem = require('../models/LibraryItem');
+const verifyToken = require('../middleware/verify-token');  
 
 // Search IGDB
-router.get('/search', async (req, res) => {
+router.get('/search', verifyToken, async (req, res) => { 
   try {
-    const { query } = req.query;
+    const { query } = req.query;  
     const games = await igdbRequest(
       'games',
-      `search "${query}";
-       fields name, cover.url, summary, genres.name, platforms.name;
-       limit 10;`
+      `search "${query}"; fields name, cover.url, summary, genres.name, platforms.name; limit 10;`
     );
     res.status(200).json(games);
   } catch (error) {
-    res.status(500).json({ err: error.message });
+    res.status(500).json({ err: error.message }); 
   }
 });
 
 // Add a game to user's library
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => { 
   try {
     const {
       igdbGameId,
@@ -66,7 +64,7 @@ router.post('/', async (req, res) => {
 });
 
 // Get user's library
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => { 
   try {
     const library = await LibraryItem.find({ userId: req.user._id })
       .populate('gameId');
@@ -77,7 +75,7 @@ router.get('/', async (req, res) => {
 });
 
 // Remove game from library
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => { 
   try {
     const item = await LibraryItem.findById(req.params.id);
 
