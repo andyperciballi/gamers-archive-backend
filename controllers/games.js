@@ -3,6 +3,7 @@ const { igdbRequest } = require('../utils/igdb');
 const ApiGame = require('../models/IgdbGame');
 const LibraryItem = require('../models/LibraryItem');
 const verifyToken = require('../middleware/verify-token');  
+const Review = require('../models/Review');
 
 // Search IGDB
 router.get('/search', verifyToken, async (req, res) => { 
@@ -89,6 +90,47 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     await item.deleteOne();
     res.status(200).json({ message: 'Game removed from library' });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+});
+
+// Get full game details by IGDB ID (+ library/review data)
+router.get('/details/:igdbId', verifyToken, async (req, res) => {
+  try {
+    const igdbId = req.params.igdbId;
+
+    // Fetch full details from IGDB
+    const igdbData = await igdbRequest(
+      'games',
+      `where id = ${igdbId}; fields name, cover.url, summary, genres.name, platforms.name, first_release_date, total_rating; limit 1;`
+    );
+
+    const game = igdbData[0];
+    if (!game) return res.status(404).json({ err: 'Game not found on IGDB' });
+
+    // Check if this game exists in our DB
+    const apiGame = await ApiGame.findOne({ igdbGameId: Number(igdbId) });
+
+    // If it does, grab the user's library item and reviews
+    let libraryItem = null;
+    let reviews = [];
+
+    if (apiGame) {
+      libraryItem = await LibraryItem.findOne({
+        userId: req.user._id,
+        gameId: apiGame._id,
+      });
+
+      reviews = await Review.find({ gameId: apiGame._id })
+        .populate('author', 'username');
+    }
+
+    res.status(200).json({
+      igdb: game,
+      libraryItem,
+      reviews,
+    });
   } catch (error) {
     res.status(500).json({ err: error.message });
   }
