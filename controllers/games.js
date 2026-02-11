@@ -22,6 +22,7 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const { igdbGameId, title, coverUrl, summary, platform, genre, status, notes } = req.body;
 
+    // Find or create ApiGame
     let apiGame = await ApiGame.findOne({ igdbGameId });
 
     if (!apiGame) {
@@ -30,6 +31,7 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Create LibraryItem
     const libraryItem = await LibraryItem.create({
       userId: req.user._id,
       gameId: apiGame._id,
@@ -37,6 +39,7 @@ router.post('/', verifyToken, async (req, res) => {
       notes,
     });
 
+    // Populate and return
     const populatedItem = await libraryItem.populate('gameId');
     res.status(201).json(populatedItem);
   } catch (error) {
@@ -54,7 +57,21 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-router.delete('/:id', verifyToken, async (req, res) => {
+// Get another user's library
+router.get('/user/:userId', verifyToken, async (req, res) => {
+  try {
+    const library = await LibraryItem.find({ userId: req.params.userId })
+      .populate('gameId');
+
+    res.status(200).json(library);
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+});
+
+
+// Remove game from library
+router.delete('/:id', verifyToken, async (req, res) => { 
   try {
     const item = await LibraryItem.findById(req.params.id);
 
@@ -68,6 +85,8 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+
+// Get full game details by IGDB ID (+ library/review data)
 router.get('/details/:igdbId', verifyToken, async (req, res) => {
   try {
     const igdbId = req.params.igdbId;
