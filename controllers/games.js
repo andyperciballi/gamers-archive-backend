@@ -5,7 +5,8 @@ const LibraryItem = require('../models/LibraryItem');
 const Review = require('../models/Review');
 const verifyToken = require('../middleware/verify-token');
 
-router.get('/search', verifyToken, async (req, res) => {
+// Search IGDB
+router.get('/search', async (req, res) => { 
   try {
     const { query } = req.query;
     const games = await igdbRequest(
@@ -85,9 +86,51 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// Home feed (PUBLIC) - Upcoming / Trending / Popular
+router.get('/home', async (req, res) => {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+
+    const [upcoming, trending, popular] = await Promise.all([
+      igdbRequest(
+        'games',
+        `
+        where first_release_date > ${now} & cover != null;
+        sort first_release_date asc;
+        fields name, cover.url, first_release_date;
+        limit 20;
+        `
+      ),
+      igdbRequest(
+        'games',
+        `
+        where total_rating_count > 50 & cover != null;
+        sort total_rating_count desc;
+        fields name, cover.url, first_release_date, total_rating, total_rating_count;
+        limit 20;
+        `
+      ),
+      igdbRequest(
+        'games',
+        `
+        where total_rating > 80 & cover != null;
+        sort total_rating desc;
+        fields name, cover.url, first_release_date, total_rating;
+        limit 20;
+        `
+      ),
+    ]);
+
+    res.status(200).json({ upcoming, trending, popular });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+});
+
+
 
 // Get full game details by IGDB ID (+ library/review data)
-router.get('/details/:igdbId', verifyToken, async (req, res) => {
+router.get('/details/:igdbId', async (req, res) => {
   try {
     const igdbId = req.params.igdbId;
 
@@ -105,6 +148,7 @@ router.get('/details/:igdbId', verifyToken, async (req, res) => {
     let reviews = [];
 
     if (apiGame) {
+      if (req.user) {
       libraryItem = await LibraryItem.findOne({
         userId: req.user._id,
         gameId: apiGame._id,
@@ -114,6 +158,12 @@ router.get('/details/:igdbId', verifyToken, async (req, res) => {
         .populate('author', 'username');
     }
 
+    res.status(200).json({
+      igdb: game,
+      libraryItem,
+      reviews,
+    });
+  }
     res.status(200).json({ igdb: game, libraryItem, reviews });
   } catch (error) {
     res.status(500).json({ err: error.message });
