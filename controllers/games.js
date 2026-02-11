@@ -21,9 +21,8 @@ router.get('/search', async (req, res) => {
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { igdbGameId, title, coverUrl, summary, platform, genre, status, notes } = req.body;
+    const { igdbGameId, title, coverUrl, summary, platform, genre, status, notes, hoursPlayed, owned } = req.body;
 
-    // Find or create ApiGame
     let apiGame = await ApiGame.findOne({ igdbGameId });
 
     if (!apiGame) {
@@ -32,15 +31,15 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Create LibraryItem
     const libraryItem = await LibraryItem.create({
       userId: req.user._id,
       gameId: apiGame._id,
       status,
       notes,
+      hoursPlayed,
+      owned,
     });
 
-    // Populate and return
     const populatedItem = await libraryItem.populate('gameId');
     res.status(201).json(populatedItem);
   } catch (error) {
@@ -81,6 +80,29 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     await item.deleteOne();
     res.status(200).json({ message: 'Game removed from library' });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
+  }
+});
+
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const item = await LibraryItem.findById(req.params.id);
+
+    if (!item) return res.status(404).json({ err: 'Library item not found' });
+    if (!item.userId.equals(req.user._id)) return res.status(403).json({ err: 'Not authorized' });
+
+    const { status, hoursPlayed, notes, owned } = req.body;
+
+    item.status = status ?? item.status;
+    item.hoursPlayed = hoursPlayed ?? item.hoursPlayed;
+    item.notes = notes ?? item.notes;
+    item.owned = owned ?? item.owned;
+
+    await item.save();
+
+    const populatedItem = await item.populate('gameId');
+    res.status(200).json(populatedItem);
   } catch (error) {
     res.status(500).json({ err: error.message });
   }
@@ -132,6 +154,18 @@ router.get('/home', async (req, res) => {
 // Get full game details by IGDB ID (+ library/review data)
 router.get('/details/:igdbId', async (req, res) => {
   try {
+    // Try to get user from token, but don't require it
+    const token = req.headers.authorization?.split(' ')[1];
+    let userId = null;
+    if (token) {
+  try {
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    userId = decoded.payload._id;  
+  } catch (e) {
+    // Invalid token is fine — just treat as logged out
+  }
+}
+
     const igdbId = req.params.igdbId;
 
     const igdbData = await igdbRequest(
@@ -148,9 +182,9 @@ router.get('/details/:igdbId', async (req, res) => {
     let reviews = [];
 
     if (apiGame) {
-      if (req.user) {
+      if (userId) {
         libraryItem = await LibraryItem.findOne({
-          userId: req.user._id,
+          userId,
           gameId: apiGame._id,
         });
       }
