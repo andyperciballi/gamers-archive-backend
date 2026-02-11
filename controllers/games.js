@@ -149,21 +149,16 @@ router.get('/details/:igdbId', async (req, res) => {
 
     if (apiGame) {
       if (req.user) {
-      libraryItem = await LibraryItem.findOne({
-        userId: req.user._id,
-        gameId: apiGame._id,
-      });
+        libraryItem = await LibraryItem.findOne({
+          userId: req.user._id,
+          gameId: apiGame._id,
+        });
+      }
 
       reviews = await Review.find({ gameId: apiGame._id })
         .populate('author', 'username');
     }
 
-    res.status(200).json({
-      igdb: game,
-      libraryItem,
-      reviews,
-    });
-  }
     res.status(200).json({ igdb: game, libraryItem, reviews });
   } catch (error) {
     res.status(500).json({ err: error.message });
