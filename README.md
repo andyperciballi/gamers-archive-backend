@@ -6,7 +6,7 @@ The API is built with Express and Node.js, uses MongoDB for data storage, and im
 
 For full project details, screenshots, and usage instructions, please see the Front-End repository:
 
-👉 [Link to Front-End GitHub Repository Here]
+👉 https://github.com/andyperciballi/gamers-archive-react-frontend
 
 ---
 
@@ -35,11 +35,11 @@ For full project details, screenshots, and usage instructions, please see the Fr
 ## 🗂 Data Models
 
 - User
-- Game
-- (Second Entity – e.g., Review / Collection / Comment)
+- APIGame
+- Library Item
+- Review
 
-At least one entity maintains a relationship to the User model.
-
+Library items are owned by users but API Game items store a larger dataset relating to a library item. Reviews are tied to the API game and not the library item so if users remove games from libraries the game will retain the reviews
 ---
 
 ## 🌐 Deployment
@@ -51,6 +51,6 @@ Deployed API URL:
 
 ## 👥 Contributors
 
-- Name 1
-- Name 2
-- Name 3
+- Andrew Perciballi
+- Felicia Bossom
+- William De Los Santos
