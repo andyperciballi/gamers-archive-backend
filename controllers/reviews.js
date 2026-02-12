@@ -1,106 +1,70 @@
-const express = require('express');
-const router = express.Router();
-const mongoose = require('mongoose');
+const router = require('express').Router();
 const Review = require('../models/Review');
+const ApiGame = require('../models/IgdbGame');
 const verifyToken = require('../middleware/verify-token');
 
-router.use(verifyToken);
-
-// GET /reviews/games/:gameId - Get all reviews for a game
-router.get('/games/:gameId', async (req, res) => {
+router.get('/game/:igdbGameId', verifyToken, async (req, res) => {
   try {
-    const reviews = await Review.find({ gameId: req.params.gameId })
-      .populate('author', 'username')
-      .sort({ createdAt: -1 });
+    const apiGame = await ApiGame.findOne({ igdbGameId: Number(req.params.igdbGameId) });
+    if (!apiGame) return res.status(200).json([]);
 
+    const reviews = await Review.find({ gameId: apiGame._id })
+      .populate('author', 'username');
     res.status(200).json(reviews);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch reviews.' });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
   }
 });
 
-
-// POST /reviews/games/:gameId - Create a review for a game
-router.post('/games/:gameId', async (req, res) => {
+router.post('/game/:igdbGameId', verifyToken, async (req, res) => {
   try {
-    // Prevent duplicate reviews from the same user on the same game
-    const existingReview = await Review.findOne({
-      gameId: req.params.gameId,
-      author: req.user._id,
-    });
-
-    if (existingReview) {
-      return res.status(400).json({ error: 'You have already reviewed this game.' });
-    }
+    const apiGame = await ApiGame.findOne({ igdbGameId: Number(req.params.igdbGameId) });
+    if (!apiGame) return res.status(404).json({ err: 'Game not found. Add it to a library first.' });
 
     const review = await Review.create({
-      ...req.body,
-      gameId: req.params.gameId,
       author: req.user._id,
+      gameId: apiGame._id,
+      rating: req.body.rating,
+      Text: req.body.Text,
     });
 
     const populated = await review.populate('author', 'username');
-
     res.status(201).json(populated);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create review.' });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ err: 'You already reviewed this game.' });
+    }
+    res.status(500).json({ err: error.message });
   }
 });
 
-// PUT /reviews/:reviewId - Update a review
-router.put('/:reviewId', async (req, res) => {
+router.put('/:id', verifyToken, async (req, res) => {
   try {
-    const review = await Review.findById(req.params.reviewId);
+    const review = await Review.findById(req.params.id);
+    if (!review) return res.status(404).json({ err: 'Review not found' });
+    if (!review.author.equals(req.user._id)) return res.status(403).json({ err: 'Not authorized' });
 
-    if (!review) {
-      return res.status(404).json({ error: 'Review not found.' });
-    }
-
-    // Only the author can update their review
-    if (!review.author.equals(req.user._id)) {
-      return res.status(403).json({ error: 'You are not authorized to edit this review.' });
-    }
-
-    // Only allow updating specific fields
-    const allowedUpdates = ['text', 'rating'];
-    allowedUpdates.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        review[field] = req.body[field];
-      }
-    });
-
+    review.rating = req.body.rating ?? review.rating;
+    review.Text = req.body.Text ?? review.Text;
     await review.save();
-    const populated = await review.populate('author', 'username');
 
+    const populated = await review.populate('author', 'username');
     res.status(200).json(populated);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update review.' });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
   }
 });
 
-// DELETE /reviews/:reviewId - Delete a review
-router.delete('/:reviewId', async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
-    const review = await Review.findById(req.params.reviewId);
-
-    if (!review) {
-      return res.status(404).json({ error: 'Review not found.' });
-    }
-
-    // Only the author can delete their review
-    if (!review.author.equals(req.user._id)) {
-      return res.status(403).json({ error: 'You are not authorized to delete this review.' });
-    }
+    const review = await Review.findById(req.params.id);
+    if (!review) return res.status(404).json({ err: 'Review not found' });
+    if (!review.author.equals(req.user._id)) return res.status(403).json({ err: 'Not authorized' });
 
     await review.deleteOne();
-
-    res.status(200).json({ message: 'Review deleted.' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete review.' });
+    res.status(200).json({ message: 'Review deleted' });
+  } catch (error) {
+    res.status(500).json({ err: error.message });
   }
 });
 
