@@ -31,6 +31,6 @@ app.use('/games', gameRoutes);
 app.use(verifyToken);
 app.use('/reviews', reviewRoutes);
 
-app.listen(3000, () => {
+app.listen(process.env.PORT||3000, () => {
   console.log('The express app is ready!');
 });
