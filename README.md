@@ -6,7 +6,7 @@ The API is built with Express and Node.js, uses MongoDB for data storage, and im
 
 For full project details, screenshots, and usage instructions, please see the Front-End repository:
 
-👉 [Link to Front-End GitHub Repository Here]
+👉 [Link to Front-End GitHub Repository Here](https://gamers-archive.netlify.app/)
 
 ---
 
@@ -36,21 +36,19 @@ For full project details, screenshots, and usage instructions, please see the Fr
 
 - User
 - Game
-- (Second Entity – e.g., Review / Collection / Comment)
-
-At least one entity maintains a relationship to the User model.
+- Library Item
+- Review
 
 ---
 
 ## 🌐 Deployment
 
-Deployed API URL:
-[Backend Deployment Link Here]
+[Backend Deployment Link Here](https://gamers-archive-f6de5a0ce214.herokuapp.com/)
 
 ---
 
 ## 👥 Contributors
 
-- Name 1
-- Name 2
-- Name 3
+- Andrew Perciballi
+- Felicia Bossom
+- William De Los Santos
